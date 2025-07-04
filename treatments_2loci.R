@@ -10,7 +10,7 @@ treatments <- treat.log_fun(N, l, V, X, Y, Zdisc, MAX, treat.log, prod.cycle)
 
 ####################################
 
-write.csv(treatments, file = sprintf("outputs/2loci/treatments.all_%s_%s.csv", scenarios, sim), row.names = F) # Save output
+write.csv(treatments, file = sprintf("outputs/treatments.all_%s_%s.csv", scenarios, sim), row.names = F) # Save output
 
 #### Summarise treatment frequency through TIME ####
 
@@ -74,7 +74,7 @@ treats.zone <- melt(treats.zone, # Melt data into single column
                value.name = "freq")
 colnames(treats.zone) <- c('zone','year',sim)
 
-write.csv(treats.zone, file = sprintf("outputs/2loci/treat.zone/treat.z_%s_%s.csv", scenarios, sim), row.names = F)
+# write.csv(treats.zone, file = sprintf("outputs/treat.zone/treat.z_%s_%s.csv", scenarios, sim), row.names = F)
 
 ##############
 
@@ -99,7 +99,7 @@ treats.farm <- melt(treats.farm, # Melt data into single column
                     value.name = "freq")
 colnames(treats.farm) <- c('farm','year',sim)
 
-write.csv(treats.farm, file = sprintf("outputs/2loci/treat.f.y/treat.f.y_%s_%s.csv", scenarios, sim), row.names = F)
+write.csv(treats.farm, file = sprintf("outputs/treat.f.y/treat.f.y_%s_%s.csv", scenarios, sim), row.names = F)
 
 
 
@@ -124,7 +124,7 @@ colnames(treat.t)[c(2,3)] <- c("treat","freq")
 
 tr.t <- treat.t # Create new dataframe to save (mapPlot.R will still use treat.t)
 colnames(tr.t)[3] <- sim # Assign name of simulation
-write.csv(tr.t, file = sprintf("outputs/2loci/treat.t/treat.t_%s_%s.csv", scenarios, sim), row.names = F) # Save to treat.t folder to compare simulations
+write.csv(tr.t, file = sprintf("outputs/treat.t/treat.t_%s_%s.csv", scenarios, sim), row.names = F) # Save to treat.t folder to compare simulations
 
 
 #### Number of treatments frequency by FARM (over whole simulation) ####
@@ -135,7 +135,7 @@ ntreats <- ifelse(treatments == "X" | treatments == "Y" | treatments == "Z",
 treat.f <- data.frame(treats = rowSums(ntreats), # Count treatments per farm
                       farmID = rownames(treatments))
 colnames(treat.f)[1] <- sim
-write.csv(treat.f, file = sprintf("outputs/2loci/treat.f/treat.f_%s_%s.csv", scenarios, sim), row.names = F) # Save to treat.f folder (to compare sims)
+# write.csv(treat.f, file = sprintf("outputs/treat.f/treat.f_%s_%s.csv", scenarios, sim), row.names = F) # Save to treat.f folder (to compare sims)
 
 #### Number of harvests by FARM (over whole simulation) ####
 
@@ -145,7 +145,29 @@ nharv <- ifelse(treatments == "H",
 harv.f <- data.frame(harv = rowSums(nharv),
                       farmID = rownames(treatments))
 colnames(harv.f)[1] <- sim
-write.csv(harv.f, file = sprintf("outputs/2loci/harv.f/harv.f_%s_%s.csv", scenarios, sim), row.names = F) # Save to harv.f folder (to compare sims)
+# write.csv(harv.f, file = sprintf("outputs/harv.f/harv.f_%s_%s.csv", scenarios, sim), row.names = F) # Save to harv.f folder (to compare sims)
 
+# Treats PER FARM PER YEAR
+
+harv.farm <- matrix(nrow=nrow(nharv), # Create matrix to fill
+                      ncol=years+1)
+colnames(harv.farm) <- c(c(1:years),"farm") # Column for each year, plus one with farm ID
+harv.farm[,years+1] <- c(farms$farm)
+
+for(nn in 1:years){
+  
+  harv.farm[,nn] <- c(rowSums(nharv[,c((0+(52*(nn-1))): # For each year (block of 52 weeks), sum number of treatments per farm
+                                             (52+(52*(nn-1))))]))
+  
+}
+
+harv.farm <- as.data.frame(harv.farm)
+harv.farm <- melt(harv.farm, # Melt data into single column
+                    id.vars = "farm",
+                    variable.name = "year",
+                    value.name = "harv")
+colnames(harv.farm) <- c('farm','year',sim)
+
+write.csv(harv.farm, file = sprintf("outputs/treat.f.y/harv.f.y_%s_%s.csv", scenarios, sim), row.names = F)
 
 

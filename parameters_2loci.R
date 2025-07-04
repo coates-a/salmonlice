@@ -6,14 +6,18 @@ args <- commandArgs(trailingOnly = TRUE) # Create command line for interacting w
 iter <- as.numeric(args[1]) # iter corresponds to array number (iteration) of job
 
 # Check for package dependenices and install/load in packages as required.
-.libPaths("/home/alcoates/R/lib")
-lib = .libPaths()[1]
+#.libPaths("/home/alcoates/R/lib")
+#lib = .libPaths()[1]
 repo<- "https://cran.ms.unimelb.edu.au/" # Set mirror to download packages.
-pkgs = c("readr", "dplyr", "gdata", "ggplot2", "gganimate", "gifski", 
-         "mapdata", "egg", "corrplot", "Matrix", "magic", "reshape", "ggstance",
+pkgs = c("readr", "dplyr", "gdata", "ggplot2", #"ggpubr",
+        # "gganimate", "gifski", 
+         "mapdata", 
+        #"egg", "corrplot", "Matrix", 
+        "magic", "reshape", 
+        #"ggstance",
          "pillar") # Define packages.
-new.pkgs <- pkgs[!(pkgs %in% installed.packages(lib=lib)[,"Package"])]
-if(length(new.pkgs)) install.packages(new.pkgs, lib=lib, repos=repo)
+#new.pkgs <- pkgs[!(pkgs %in% installed.packages(lib=lib)[,"Package"])]
+#if(length(new.pkgs)) install.packages(new.pkgs, lib=lib, repos=repo)
 inst = lapply(pkgs, library, character.only = TRUE)
 
 
@@ -217,29 +221,29 @@ s.T.to <- c(rep(c((2*sT.to), sT.to, 0), each=3)) # Trade-offs in GROWTH to T all
 
 # Vector of trade-offs for genotypes when strategy X NOT present (IF X is CONTINUOUS)
 s.to.no.contx <- ifelse(rep(stratx == "cont", times=g), # If X is CONTINUOUS, there will be trade-offs when X NOT PRESENT
-               ifelse(rep(R.sel == "x", times=g), # if R selected for by Cont X,
+               ifelse(rep(R.sel == "x" & to.R == "absent", times=g), # if R selected for by Cont X,
                       s.R.to, # Any trade-offs from R allele
                       0) + # No trade-offs if R selected for by Y
-                 ifelse(rep(T.sel == "x", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont X)
+                 ifelse(rep(T.sel == "x" & to.T == "absent", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont X)
                         s.T.to,
                         0),
                0) # No trade-offs in absence of X if X is Discrete (calculated below)
 
 # Vector of trade-offs for genotypes when strategy Y NOT present (IF Y is CONTINUOUS)
 s.to.no.conty <- ifelse(rep(straty == "cont", times=g), # If Y is CONTINUOUS, there will be trade-offs when Y NOT PRESENT
-       ifelse(rep(R.sel == "y", times=g), # if R selected for by Cont Y,
+       ifelse(rep(R.sel == "y" & to.R == "absent", times=g), # if R selected for by Cont Y,
               s.R.to, # Any trade-offs from R allele
               0) + # No trade-offs if R selected for by X
-         ifelse(rep(T.sel == "y", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont Y)
+         ifelse(rep(T.sel == "y" & to.T == "absent", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont Y)
                 s.T.to,
                 0),
        0)
 
 # Vector of trade-offs to resistance to DISCRETE strategies (applied at ALL TIMES, regardless of whether used or not)
-s.disc.to <- ifelse(rep((R.sel=="x" & stratx=="disc") | (R.sel=="y" & straty=="disc"), times=g), # If R selected for by Discrete strategy
+s.disc.to <- ifelse(rep((R.sel=="x" & stratx=="disc") | (R.sel=="y" & straty=="disc") | to.R == "always", times=g), # If R selected for by Discrete strategy
        s.R.to, # Apply any trade-offs of R
        rep(0,g)) +
-  ifelse(rep((T.sel=="x" & stratx=="disc") | (T.sel=="y" & straty=="disc"), times=g), # If T selected for by Discrete strategy
+  ifelse(rep((T.sel=="x" & stratx=="disc") | (T.sel=="y" & straty=="disc") | to.T == "always", times=g), # If T selected for by Discrete strategy
          s.T.to, # Apply any trade-offs of T
          rep(0,g))
 
@@ -263,7 +267,7 @@ s.x.y <- x.s.g * # Adjustment to s from X on genotypes
   s.disc.to # Minus any trade-offs from Discrete resistance
 s.x.y <- replace(s.x.y, s.x.y < 0, 0)
 
-s.nox.noy <- 1 - s.to.no.contx - s.to.no.conty # No X or Y (just tradeoffs)
+s.nox.noy <- 1 - s.to.no.contx - s.to.no.conty - s.disc.to # No X or Y (just tradeoffs)
 
 ##### Match vector of s (growth rate) adjustments for genotypes to each farm (depending on which strategies are used)
 
@@ -318,29 +322,29 @@ mu.T.to <- c(rep(c((2*muT.to), muT.to, 0), each=3)) # Trade-offs in GROWTH to T 
 
 # Vector of trade-offs for genotypes when strategy X NOT present (IF X is CONTINUOUS)
 mu.to.no.contx <- ifelse(rep(stratx == "cont", times=g), # If X is CONTINUOUS, there will be trade-offs when X NOT PRESENT
-                      ifelse(rep(R.sel == "x", times=g), # if R selected for by Cont X,
-                             mu.R.to, # Any trade-offs from R allele
-                             0) + # No trade-offs if R selected for by Y
-                        ifelse(rep(T.sel == "x", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont X)
-                               mu.T.to,
-                               0),
-                      0) # No trade-offs in absence of X if X is Discrete (calculated below)
+                         ifelse(rep(R.sel == "x" & to.R == "absent", times=g), # if R selected for by Cont X,
+                                mu.R.to, # Any trade-offs from R allele
+                                0) + # No trade-offs if R selected for by Y
+                           ifelse(rep(T.sel == "x" & to.T == "absent", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont X)
+                                  mu.T.to,
+                                  0),
+                         0) # No trade-offs in absence of X if X is Discrete (calculated below)
 
 # Vector of trade-offs for genotypes when strategy Y NOT present (IF Y is CONTINUOUS)
 mu.to.no.conty <- ifelse(rep(straty == "cont", times=g), # If Y is CONTINUOUS, there will be trade-offs when Y NOT PRESENT
-                      ifelse(rep(R.sel == "y", times=g), # if R selected for by Cont Y,
-                             mu.R.to, # Any trade-offs from R allele
-                             0) + # No trade-offs if R selected for by X
-                        ifelse(rep(T.sel == "y", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont Y)
-                               mu.T.to,
-                               0),
-                      0)
+                         ifelse(rep(R.sel == "y" & to.R == "absent", times=g), # if R selected for by Cont Y,
+                                mu.R.to, # Any trade-offs from R allele
+                                0) + # No trade-offs if R selected for by X
+                           ifelse(rep(T.sel == "y" & to.R == "absent", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont Y)
+                                  mu.T.to,
+                                  0),
+                         0)
 
 # Vector of trade-offs to resistance to DISCRETE strategies (applied at ALL TIMES, regardless of whether used or not)
-mu.disc.to <- ifelse(rep((R.sel=="x" & stratx=="disc") | (R.sel=="y" & straty=="disc"), times=g), # If R selected for by Discrete strategy
-                  mu.R.to, # Apply any trade-offs of R
-                  rep(0,g)) +
-  ifelse(rep((T.sel=="x" & stratx=="disc") | (T.sel=="y" & straty=="disc"), times=g), # If T selected for by Discrete strategy
+mu.disc.to <- ifelse(rep((R.sel=="x" & stratx=="disc") | (R.sel=="y" & straty=="disc") | to.R == "always", times=g), # If R selected for by Discrete strategy
+                     mu.R.to, # Apply any trade-offs of R
+                     rep(0,g)) +
+  ifelse(rep((T.sel=="x" & stratx=="disc") | (T.sel=="y" & straty=="disc") | to.T == "always", times=g), # If T selected for by Discrete strategy
          mu.T.to, # Apply any trade-offs of T
          rep(0,g))
 
@@ -364,7 +368,7 @@ mu.x.y <- x.mu.g * # Effect of X on mu (including resistance)
   mu.disc.to # Minus any trade-offs from Discrete resistance
 mu.x.y <- replace(mu.x.y, mu.x.y < 0, 0)
 
-mu.nox.noy <- 1 - mu.to.no.contx - mu.to.no.conty # No X or Y (just tradeoffs)
+mu.nox.noy <- 1 - mu.to.no.contx - mu.to.no.conty - mu.disc.to
 
 ##### Match vector of s (growth rate) adjustments for genotypes to each farm (depending on which strategies are used)
 
@@ -420,29 +424,29 @@ v.T.to <- c(rep(c((2*vT.to), vT.to, 0), each=3)) # Trade-offs in GROWTH to T all
 
 # Vector of trade-offs for genotypes when strategy X NOT present (IF X is CONTINUOUS)
 v.to.no.contx <- ifelse(rep(stratx == "cont", times=g), # If X is CONTINUOUS, there will be trade-offs when X NOT PRESENT
-                         ifelse(rep(R.sel == "x", times=g), # if R selected for by Cont X,
+                         ifelse(rep(R.sel == "x" & to.R == "absent", times=g), # if R selected for by Cont X,
                                 v.R.to, # Any trade-offs from R allele
                                 0) + # No trade-offs if R selected for by Y
-                           ifelse(rep(T.sel == "x", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont X)
+                           ifelse(rep(T.sel == "x" & to.T == "absent", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont X)
                                   v.T.to,
                                   0),
                          0) # No trade-offs in absence of X if X is Discrete (calculated below)
 
 # Vector of trade-offs for genotypes when strategy Y NOT present (IF Y is CONTINUOUS)
 v.to.no.conty <- ifelse(rep(straty == "cont", times=g), # If Y is CONTINUOUS, there will be trade-offs when Y NOT PRESENT
-                         ifelse(rep(R.sel == "y", times=g), # if R selected for by Cont Y,
+                         ifelse(rep(R.sel == "y" & to.R == "absent", times=g), # if R selected for by Cont Y,
                                 v.R.to, # Any trade-offs from R allele
                                 0) + # No trade-offs if R selected for by X
-                           ifelse(rep(T.sel == "y", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont Y)
+                           ifelse(rep(T.sel == "y" & to.T == "absent", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont Y)
                                   v.T.to,
                                   0),
                          0)
 
 # Vector of trade-offs to resistance to DISCRETE strategies (applied at ALL TIMES, regardless of whether used or not)
-v.disc.to <- ifelse(rep((R.sel=="x" & stratx=="disc") | (R.sel=="y" & straty=="disc"), times=g), # If R selected for by Discrete strategy
+v.disc.to <- ifelse(rep((R.sel=="x" & stratx=="disc") | (R.sel=="y" & straty=="disc") | to.R == "always", times=g), # If R selected for by Discrete strategy
                      v.R.to, # Apply any trade-offs of R
                      rep(0,g)) +
-  ifelse(rep((T.sel=="x" & stratx=="disc") | (T.sel=="y" & straty=="disc"), times=g), # If T selected for by Discrete strategy
+  ifelse(rep((T.sel=="x" & stratx=="disc") | (T.sel=="y" & straty=="disc") | to.T == "always", times=g), # If T selected for by Discrete strategy
          v.T.to, # Apply any trade-offs of T
          rep(0,g))
 
@@ -465,7 +469,7 @@ v.x.y <- x.v.g * # Effect of X on v (including resistance)
   v.disc.to # Minus any trade-offs from Discrete resistance
 v.x.y <- replace(v.x.y, v.x.y < 0, 0)
 
-v.nox.noy <- 1 - v.to.no.contx - v.to.no.conty # No X or Y (just tradeoffs)
+v.nox.noy <- 1 - v.to.no.contx - v.to.no.conty - v.disc.to # No X or Y (just tradeoffs)
 
 H.gen$v.cont <- ifelse(H.gen$H=="x" | H.gen$H=="xz",
                         v.x.noy,
@@ -560,29 +564,29 @@ f.T.to <- c(rep(c((2*fT.to), fT.to, 0), each=3)) # Trade-offs in GROWTH to T all
 
 # Vector of trade-offs for genotypes when strategy X NOT present (IF X is CONTINUOUS)
 f.to.no.contx <- ifelse(rep(stratx == "cont", times=g), # If X is CONTINUOUS, there will be trade-offs when X NOT PRESENT
-                        ifelse(rep(R.sel == "x", times=g), # if R selected for by Cont X,
+                        ifelse(rep(R.sel == "x" & to.R == "absent", times=g), # if R selected for by Cont X,
                                f.R.to, # Any trade-offs from R allele
                                0) + # No trade-offs if R selected for by Y
-                          ifelse(rep(T.sel == "x", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont X)
+                          ifelse(rep(T.sel == "x" & to.T == "absent", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont X)
                                  f.T.to,
                                  0),
                         0) # No trade-offs in absence of X if X is Discrete (calculated below)
 
 # Vector of trade-offs for genotypes when strategy Y NOT present (IF Y is CONTINUOUS)
 f.to.no.conty <- ifelse(rep(straty == "cont", times=g), # If Y is CONTINUOUS, there will be trade-offs when Y NOT PRESENT
-                        ifelse(rep(R.sel == "y", times=g), # if R selected for by Cont Y,
+                        ifelse(rep(R.sel == "y" & to.R == "absent", times=g), # if R selected for by Cont Y,
                                f.R.to, # Any trade-offs from R allele
                                0) + # No trade-offs if R selected for by X
-                          ifelse(rep(T.sel == "y", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont Y)
+                          ifelse(rep(T.sel == "y" & to.T == "absent", times=g), # PLUS any trade-offs from T allele (if T selected for by Cont Y)
                                  f.T.to,
                                  0),
                         0)
 
 # Vector of trade-offs to resistance to DISCRETE strategies (applied at ALL TIMES, regardless of whether used or not)
-f.disc.to <- ifelse(rep((R.sel=="x" & stratx=="disc") | (R.sel=="y" & straty=="disc"), times=g), # If R selected for by Discrete strategy
+f.disc.to <- ifelse(rep((R.sel=="x" & stratx=="disc") | (R.sel=="y" & straty=="disc") | to.R == "always", times=g), # If R selected for by Discrete strategy
                     f.R.to, # Apply any trade-offs of R
                     rep(0,g)) +
-  ifelse(rep((T.sel=="x" & stratx=="disc") | (T.sel=="y" & straty=="disc"), times=g), # If T selected for by Discrete strategy
+  ifelse(rep((T.sel=="x" & stratx=="disc") | (T.sel=="y" & straty=="disc") | to.T == "always", times=g), # If T selected for by Discrete strategy
          f.T.to, # Apply any trade-offs of T
          rep(0,g))
 
@@ -605,7 +609,7 @@ f.x.y <- x.f.g * # Effect of X on f (including resistance)
   f.disc.to # Minus any trade-offs from Discrete resistance
 f.x.y <- replace(f.x.y, f.x.y < 0, 0)
 
-f.nox.noy <- 1 - f.to.no.contx - f.to.no.conty # No X or Y (just tradeoffs)
+f.nox.noy <- 1 - f.to.no.contx - f.to.no.conty - f.disc.to # No X or Y (just tradeoffs)
 
 H.gen$f.cont <- ifelse(H.gen$H=="x" | H.gen$H=="xz",
                        f.x.noy,
