@@ -188,6 +188,7 @@ H$leastDwin25_z_mostDwin75_xyz <- ordered_2strats("z", 0.25, "xyz")
 H$leastDwin50_z_mostDwin50_xyz <- ordered_2strats("z", 0.5, "xyz") 
 H$leastDwin75_z_mostDwin25_xyz <- ordered_2strats("z", 0.75, "xyz")
 H$leastDwin90_z_mostDwin10_xyz <- ordered_2strats("z", 0.9, "xyz")
+H$leastDwin95_z_mostDwin5_xyz <- ordered_2strats("z", 0.95, "xyz")
 
 
 ##### Sort by strength of INCOMING SUMMER connections #####
@@ -241,6 +242,7 @@ H$leastDwout25_xyz_mostDwout75_z <- ordered_2strats("xyz", 0.25, "z")
 H$leastDwout50_xyz_mostDwout50_z <- ordered_2strats("xyz", 0.5, "z") # least connected 50% usoutg xyz, most connected 50% usoutg z
 H$leastDwout75_xyz_mostDwout25_z <- ordered_2strats("xyz", 0.75, "z")
 H$leastDwout90_xyz_mostDwout10_z <- ordered_2strats("xyz", 0.9, "z")
+H$leastDwout95_xyz_mostDwout5_z <- ordered_2strats("xyz", 0.95, "z")
 # Switch xyz and z -> for when xyz and z have different effects
 H$leastDwout10_z_mostDwout90_xyz <- ordered_2strats("z", 0.1, "xyz") 
 H$leastDwout25_z_mostDwout75_xyz <- ordered_2strats("z", 0.25, "xyz")

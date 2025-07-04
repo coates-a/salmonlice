@@ -37,23 +37,54 @@ rownames(N) <- rep(farms$farmID, each=z) # A row for every life stage, genotype 
 colnames(N) <- c(0:(ts-1)) # A column for every time-step
 
 #### Calculate number of lice at start of simulation (N_t=0) ####
-# Starting lice abundance based on Barents Watch data
 # For each farm, multiply lice abundance (lice/fish) by number of fish (fs)
-farms$adult.x <- farms$female * farms$fs # Assume number of adults = number adult females
-farms$preadult.x <- farms$motile * farms$fs # Assume all motiles = pre-adult
-farms$chalimus.x <- farms$sessile * farms$fs
+
+# New script: adjust starting lice numbers
+ad.start <- matrix(0, nrow = i, ncol = 4)
+pa.start <- matrix(0, nrow = i, ncol = 4)
+ch.start <- matrix(0, nrow = i, ncol = 4)
+
+# Starting lice abundance based on Barents Watch data
+ad.start[, 1] <- farms$female * farms$fs # Assume number of adults = number adult females
+pa.start[, 1] <- farms$motile * farms$fs # Assume all motiles = pre-adult
+ch.start[, 1] <- farms$sessile * farms$fs
+
+# Use lice numbers calculated after the 2-year spin-up period (sim = mech only)
+ad.start[, 2] <- farms$ad.y2 * farms$fs # Assume number of adults = number adult females
+pa.start[, 2] <- farms$pa.y2 * farms$fs # Assume all motiles = pre-adult
+ch.start[, 2] <- farms$ch.y2 * farms$fs
+
+# Constant lice abundance #1
+ad.start[, 3] <- 0.2 * farms$fs # Assume number of adults = number adult females
+pa.start[, 3] <- 0.2 * farms$fs # Assume all motiles = pre-adult
+ch.start[, 3] <- 0.2 * farms$fs
+
+# Constant lice abundance #2
+ad.start[, 4] <- 0.1 * farms$fs # Assume number of adults = number adult females
+pa.start[, 4] <- 0.1 * farms$fs # Assume all motiles = pre-adult
+ch.start[, 4] <- 0.1 * farms$fs
+
+adult.x <- ad.start[, lice.start] # column of starting lice numbetrs given by lice.start in paras.csv
+preadult.x <- pa.start[, lice.start]
+chalimus.x <- ch.start[, lice.start]
+
+# Prev script
+# farms$adult.x <- farms$female * farms$fs # Assume number of adults = number adult females
+# farms$preadult.x <- farms$motile * farms$fs # Assume all motiles = pre-adult
+# farms$chalimus.x <- farms$sessile * farms$fs
+
 
 # Create a marker (r) for the 1st row in N for each farm (corresponding to RR Larvae)
 r <- seq(from=1, to=size, by=z)
 # Fill N_t=0 with starting lice numbers
 for(rr in seq(3, z, 4)){ # Adults in every 4th row from row 4 (3+1)
-   N[r+rr, 1] <- farms$adult.x # Adults in every 4th row, from rows 4 - 12
+   N[r+rr, 1] <- adult.x #farms$adult.x # Adults in every 4th row, from rows 4 - 12
 }
 for(rr in seq(2, z, 4)){
-   N[r+rr, 1] <- farms$preadult.x # Pre-adults in every 4th row, from rows 3 - 11
+   N[r+rr, 1] <- preadult.x #farms$preadult.x # Pre-adults in every 4th row, from rows 3 - 11
 }
 for(rr in seq(1, z, 4)){
-   N[r+rr, 1] <- farms$chalimus.x # Chalimus in every 4th row, from rows 2 - 10
+   N[r+rr, 1] <- chalimus.x #farms$chalimus.x # Chalimus in every 4th row, from rows 2 - 10
 }
 
 
@@ -193,6 +224,7 @@ popdyn <- merge(x=popdyn, y=nT, by=c("stage","farm","t"), all.y=F) # Merge with 
 popdyn$pT <- popdyn$nT / (2*popdyn$N.stage) # Number of R alleles / total number of alleles (2 per lice)
 
 
+
 #################################
 # Merge with farm info (from farms.csv)
 farms$farm <- farms$farmID # Ensure same column names
@@ -201,7 +233,7 @@ farms$H <- H.vector # Distribution of continuous strategies across farms (in thi
 popdyn <- merge(x=popdyn, y=farms[,c("lat", "lon","farm","H","zone")], by="farm", all.y=TRUE) # Match farms to their latitude & longitude, production zone, and whether or not using continuous strategy
 
 #### Save output ####
-write.csv(popdyn, file = sprintf('outputs/2loci/popdyn_2loci_%s_%s.csv', scenarios, sim), row.names = F)
+write.csv(popdyn, file = sprintf('outputs/popdyn_2loci_%s_%s.csv', scenarios, sim), row.names = F)
 
 #### Calculate the number of treatments applied through simulation ####
 source("src/2loci/treatments_2loci.R") 
@@ -232,9 +264,60 @@ farm.sum <- merge(x=farm.sum, y=pT.end, by="farmID", all=T) # Add mean pR in fin
 
 
 #### Save farm summary ####
-write.csv(farm.sum, file = sprintf("outputs/2loci/farm_summary_%s_%s.csv", scenarios, sim), row.names = T, col.names = T )
+write.csv(farm.sum, file = sprintf("outputs/farm_summary_%s_%s.csv", scenarios, sim), row.names = T, col.names = T )
+
+### CALCULATE N and GENE FREQUENCY (p) IN WHOLE METAPOPULATION ####
+
+# Look just at adults for now
+ads <- subset(popdyn, stage=="ad") 
+
+gf <- aggregate(N ~ geno + genoR + genoT + tt, data=ads, FUN = sum) # Sum all adults of each genotype across all farms
+Ntot <- aggregate(N ~ tt, data=ads, FUN=sum) # Total number of adults in sim
+data.table::setnames(Ntot,'N','Ntot')
+gf <- merge(x=gf, y=Ntot, by="tt", all.y=F)
+gf$geno.prop <- gf$N / gf$Ntot # Proportion of genotypes in whole metapopulation
+# Number of R alleles in whole adult metapopulation
+gf$nR <- gf$N * ifelse(gf$genoR == "RR", # For each louse,
+                       2, # 2x R alleles in RR
+                       ifelse(gf$genoR == "RS", 
+                              1, # 1x in RS
+                              0)) # 0 in SS
+nRtot <- aggregate(nR ~ tt, data=gf, FUN=sum)
+data.table::setnames(nRtot,'nR','nRtot')
+gf <- merge(x=gf, y=nRtot, by="tt")
+gf$pR <- gf$nRtot / (2* gf$Ntot) # p = number R alleles / 2*number adults
+# Number of T alleles in whole adult metapopulation
+gf$nT <- gf$N * ifelse(gf$genoT == "TT", # For each louse,
+                       2, # 2x T alleles in TT
+                       ifelse(gf$genoT == "TU", 
+                              1, # 1x in TU
+                              0)) # 0 in UU
+nTtot <- aggregate(nT ~ tt, data=gf, FUN=sum)
+data.table::setnames(nTtot,'nT','nTtot')
+gf <- merge(x=gf, y=nTtot, by="tt")
+gf$pT <- gf$nTtot / (2* gf$Ntot) # p = number T alleles / 2*number adults
+
+
+gf.p <- subset(gf, geno=="SSUU") # Just need to plot for 1 genotype, since p values are repeated for each genotype
+gf.p <- gf.p[,c("tt","pR","pT")]
+gf.p <- melt(gf.p, # Melt data into single column
+             id.vars = "tt")
+colnames(gf.p)[c(2,3)]<-c('locus', 'p')
+
+colnames(gf.p)[3] <- sim
+write.csv(gf.p, file = sprintf('outputs/p/p_%s_%s.csv', scenarios, sim), row.names = F) # Save back into src with new data
+
+##### Calculate MEAN ABUNDACE across all farms #####
+
+m.ab <- subset(popdyn, geno=="SSUU" & stage=="ad" &
+                 prodcy==1) # Only average ACTIVE farms
+m.ab <- aggregate(abund.stage ~ tt, data=m.ab, FUN = mean)
+# Save mean abundance (across farms) in a separate folder - will combine all files in folder to compare abundance across sims
+colnames(m.ab)[2] <- sim
+write.csv(m.ab, file = sprintf('outputs/abund/mab_%s_%s.csv', scenarios, sim), row.names = F) # Save back into src with new data
+
 
 #### Create plots ####
-source("src/2loci/mapPlot_2loci.R") 
+# source("src/2loci/mapPlot_2loci.R") 
 
 
